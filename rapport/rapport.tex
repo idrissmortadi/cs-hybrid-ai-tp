@@ -1,0 +1,520 @@
+\documentclass[11pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{multicol}
+\usepackage{subcaption}
+
+% Layout
+\geometry{a4paper, margin=2.5cm}
+\definecolor{darkblue}{rgb}{0.0, 0.0, 0.5}
+\hypersetup{colorlinks=true, linkcolor=darkblue, citecolor=darkblue, urlcolor=darkblue}
+
+\title{Résolution de l'Équation de Poisson par Méthodes Hybrides : \\
+Réseaux Neuronaux Informés par la Physique et Apprentissage Supervisé}
+\author{Idriss MORTADI \\ \href{mailto:idriss.mortadi@student-cs.fr}{idriss.mortadi@student-cs.fr}}
+\date{Avril 2025}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    Ce rapport présente une comparaison entre deux approches pour résoudre l'équation de Poisson : les Réseaux Neuronaux Informés par la Physique (Physics-Informed Neural Networks, PINNs) et l'apprentissage supervisé traditionnel. Les PINNs intègrent directement les équations différentielles dans la fonction de perte du réseau, tandis que l'apprentissage supervisé utilise des solutions numériques préexistantes comme données d'entraînement. Nous analysons les performances de ces deux méthodes et discutons de leurs avantages et inconvénients respectifs.
+\end{abstract}
+
+\tableofcontents
+
+\newpage
+\section{Introduction}
+
+L'équation de Poisson est une équation aux dérivées partielles (EDP) fondamentale qui apparaît dans de nombreux domaines des sciences et de l'ingénierie, notamment l'électromagnétisme, la mécanique des fluides, et la diffusion de chaleur. Dans sa forme la plus simple, elle s'écrit :
+
+\begin{equation}
+    \nabla^2 u + f = 0
+\end{equation}
+
+où $\nabla^2$ est l'opérateur laplacien, $u$ est la fonction inconnue, et $f$ est un terme source connu.
+
+Traditionnellement, cette équation est résolue numériquement par des méthodes telles que les différences finies, les éléments finis ou les volumes finis. Cependant, ces dernières années, les approches basées sur l'apprentissage automatique ont gagné en popularité pour la résolution d'EDPs.
+
+Dans ce rapport, nous comparons deux approches d'apprentissage automatique pour résoudre l'équation de Poisson :
+\begin{enumerate}
+    \item \textbf{Réseaux Neuronaux Informés par la Physique (PINNs)} : Ces réseaux incorporent directement les équations différentielles dans leur fonction de perte, permettant un apprentissage sans données de solution.
+    \item \textbf{Apprentissage Supervisé Classique} : Cette approche utilise des solutions numériques préexistantes (obtenues par différences finies dans notre cas) comme données d'entraînement.
+\end{enumerate}
+
+\subsection*{Notations}
+\begin{itemize}
+    \item $\nabla^2$: opérateur laplacien.
+    \item $u$: fonction inconnue (solution de l'équation de Poisson).
+    \item $f$: terme source.
+    \item $\Omega$: domaine de calcul.
+    \item $\partial\Omega$: frontière du domaine.
+\end{itemize}
+
+\section{Formulation du Problème}
+
+Nous considérons l'équation de Poisson bidimensionnelle sur le domaine carré unitaire $\Omega = [0,1]^2$ avec des conditions aux limites de Dirichlet homogènes :
+
+\begin{align}
+\nabla^2 u(x,y) + f(x,y) &= 0, \quad (x,y) \in \Omega \\
+u(x,y) &= 0, \quad (x,y) \in \partial\Omega
+\end{align}
+
+Le terme source $f(x,y)$ est défini comme :
+\begin{equation}
+f(x,y) = x\sin(a\pi y) + y\sin(b\pi x)
+\end{equation}
+
+avec $a = 0.3$ et $b = 0.5$.
+
+\section{Génération de données}
+
+La génération de données est une étape cruciale pour les deux approches étudiées. Pour le PINN et les différences finies, nous générons une grille uniforme de points sur le domaine $\Omega = [0,1]^2$ avec $n$ points dans chaque dimension, résultant en $n \times n$ points au total. Pour notre étude, nous avons utilisé $n = 100$, ce qui fournit une résolution suffisante pour capturer la dynamique de la solution.
+
+\subsection{Points pour le PINN}
+
+Pour l'entraînement du PINN, nous séparons les points de la grille en deux catégories :
+\begin{itemize}
+    \item \textbf{Points intérieurs} : Ces points, situés à l'intérieur du domaine $\Omega$, sont utilisés pour calculer le terme de perte associé à l'équation de Poisson ($\mathcal{L}_\text{équation}$).
+    \item \textbf{Points frontières} : Ces points, situés sur le bord du domaine $\partial\Omega$, sont utilisés pour le terme de perte des conditions aux limites ($\mathcal{L}_\text{limite}$).
+\end{itemize}
+
+Pour les points intérieurs, nous calculons directement le résidu de l'équation différentielle $\nabla^2 u + f = 0$ en utilisant la différentiation automatique de PyTorch, qui permet d'obtenir précisément les dérivées partielles de la sortie du réseau par rapport à ses entrées.
+
+\subsection{Points pour l'apprentissage supervisé}
+
+Pour l'entraînement du modèle supervisé, nous utilisons la solution par différences finies comme référence. Les données générées sont organisées comme suit :
+\begin{itemize}
+    \item \textbf{Entrées} : Coordonnées $(x, y)$ des points sur la grille.
+    \item \textbf{Sorties cibles} : Valeurs de la solution $u(x, y)$ calculées par la méthode des différences finies.
+\end{itemize}
+
+Ces données sont ensuite divisées en trois ensembles :
+\begin{itemize}
+    \item Ensemble d'entraînement (80\% des données) : Utilisé pour ajuster les paramètres du réseau.
+    \item Ensemble de validation (10\% des données) : Utilisé pour surveiller la généralisation pendant l'entraînement.
+    \item Ensemble de test (10\% des données) : Utilisé pour l'évaluation finale des performances.
+\end{itemize}
+
+Le temps nécessaire pour générer les données est négligeable (environ $0.0004$ secondes) comparé au temps d'entraînement des modèles, mais cette étape est fondamentale pour l'approche supervisée qui repose entièrement sur ces données pré-calculées.
+
+\section{Méthodes}
+
+\subsection{Réseau Neuronal Informé par la Physique (PINN)}
+
+Un PINN consiste en un réseau neuronal profond entraîné à satisfaire l'équation différentielle et les conditions aux limites. La fonction de perte comprend deux termes :
+
+\begin{equation}
+\mathcal{L} = \mathcal{L}_\text{équation} + \mathcal{L}_\text{limite}
+\end{equation}
+
+où $\mathcal{L}_\text{équation}$ représente l'erreur quadratique moyenne du résidu de l'équation différentielle, et $\mathcal{L}_\text{limite}$ représente l'erreur quadratique moyenne sur les conditions aux limites.
+
+Pour l'équation de Poisson :
+\begin{align}
+\mathcal{L}_\text{équation} &= \frac{1}{N_{int}} \sum_{i=1}^{N_{int}} \left| \nabla^2 u(x_i, y_i) + f(x_i, y_i) \right|^2 \\
+\mathcal{L}_\text{limite} &= \frac{1}{N_{bd}} \sum_{j=1}^{N_{bd}} \left| u(x_j, y_j) \right|^2
+\end{align}
+
+où $(x_i, y_i)$ sont des points à l'intérieur du domaine et $(x_j, y_j)$ sont des points sur la frontière.
+
+L'architecture du réseau PINN utilisée dans cette étude est constituée de quatre couches entièrement connectées avec fonction d'activation tangente hyperbolique :
+\begin{itemize}
+    \item Couche d'entrée : 2 neurones (pour les coordonnées $x$ et $y$)
+    \item Couches cachées : 3 couches de 64 neurones chacune avec activation tanh
+    \item Couche de sortie : 1 neurone (pour la valeur de $u$)
+\end{itemize}
+
+La dérivation des gradients nécessaires pour calculer le laplacien est effectuée par différentiation automatique grâce à PyTorch.
+
+\subsection{Apprentissage Supervisé avec Solution de Référence}
+
+L'approche supervisée utilise une solution numérique obtenue par différences finies comme données d'entraînement. Le réseau apprend simplement une correspondance entre les coordonnées $(x,y)$ et les valeurs de la solution $u(x,y)$ à ces points.
+
+Nous utilisons une architecture de réseau identique à celle du PINN mais avec une fonction de perte différente, à savoir l'erreur quadratique moyenne classique :
+
+\begin{equation}
+\mathcal{L}_{MSE} = \frac{1}{N} \sum_{i=1}^{N} \left| u_{pred}(x_i, y_i) - u_{ref}(x_i, y_i) \right|^2
+\end{equation}
+
+Les données sont divisées en ensembles d'entraînement (80\%), de validation (10\%) et de test (10\%).
+
+\subsection{Méthode des Différences Finies}
+
+Pour obtenir une solution de référence, nous utilisons la méthode des différences finies. L'opérateur laplacien $\nabla^2 u$ est discrétisé en utilisant le schéma à 5 points :
+
+\begin{equation}
+\nabla^2 u(x_i, y_j) \approx \frac{u_{i+1,j} + u_{i-1,j} + u_{i,j+1} + u_{i,j-1} - 4u_{i,j}}{h^2}
+\end{equation}
+
+où $h$ est le pas de discrétisation dans les deux directions. La solution est obtenue en résolvant le système linéaire résultant.
+
+\subsection{Environnement de Calcul}
+
+Les expériences ont été réalisées sur la configuration matérielle suivante :
+\begin{itemize}
+    \item GPU : NVIDIA GeForce RTX 3050 (4096 MiB de mémoire)
+    \item Driver NVIDIA : version 570.86.16
+    \item CUDA : version 12.8
+\end{itemize}
+
+Tous les modèles ont été implémentés avec PyTorch et entraînés sur le même environnement matériel pour assurer une comparaison équitable des performances de calcul.
+
+\section{Résultats}
+
+\subsection{Solution PINN}
+
+Les figures \ref{fig:pinn_solution_2d} et \ref{fig:pinn_solution_3d} montrent la solution obtenue par le réseau PINN après entraînement.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/pinn_solution_2d.pdf}
+        \caption{Solution obtenue par PINN (2D).}
+        \label{fig:pinn_solution_2d}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/pinn_solution_3d.pdf}
+        \caption{Solution obtenue par PINN (3D).}
+        \label{fig:pinn_solution_3d}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/pinn_residuals_3d.pdf}
+        \caption{Résidu EDP}
+        \label{fig:pinn_resid_3d} 
+    \end{subfigure}
+    \caption{Solutions obtenues par PINN après 10 000 itérations : (a) vue 2D, (b) représentation 3D et (c) résidu de l'EDP.}
+    \label{fig:pinn_solutions}
+\end{figure}
+
+La figure \ref{fig:pinn_training} montre l'évolution de la perte pendant l'entraînement du PINN.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/pinn_training_history.pdf}
+    \caption{Évolution de la perte pendant l'entraînement du PINN.}
+    \label{fig:pinn_training}
+\end{figure}
+
+\subsection{Solution par Différences Finies}
+
+Les figures \ref{fig:fd_solution_2d} et \ref{fig:fd_solution_3d} présentent la solution de référence obtenue par la méthode des différences finies.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/fd_solution_2d.pdf}
+        \caption{Solution 2D.}
+        \label{fig:fd_solution_2d}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/fd_solution_3d.pdf}
+        \caption{Représentation 3D.}
+        \label{fig:fd_solution_3d}
+    \end{subfigure}
+    % \begin{subfigure}{0.45\textwidth}
+    %     \centering
+    %     \includegraphics[width=\textwidth]{figures/fd_residuals_3d.pdf}
+    %     \caption{Résidu EDP}
+    %     \label{fig:pinn_resid_3d} 
+    % \end{subfigure}
+    \caption{Solutions obtenues par la méthode des différences finies : (a) vue 2D et (b) représentation 3D.}
+    \label{fig:fd_solutions}
+\end{figure}
+
+
+\subsection{Comparaison PINN vs Différences Finies}
+
+Les figures \ref{fig:pinn_error_2d} et \ref{fig:pinn_error_3d} montrent l'erreur entre la solution PINN et la solution par différences finies.
+
+
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/pinn_fd_error_2d.pdf}
+        \caption{Erreur 2D.}
+        \label{fig:pinn_error_2d}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/pinn_fd_error_3d.pdf}
+        \caption{Erreur 3D.}
+        \label{fig:pinn_error_3d}
+    \end{subfigure}
+
+
+    \caption{Erreur entre la solution PINN et la solution par différences finies : (a) vue 2D et (b) représentation 3D.}
+    \label{fig:pinn_fd_error}
+\end{figure}
+
+\textbf{Métriques d'erreur pour PINN:}
+\begin{itemize}
+    \item Erreur quadratique moyenne (MSE): $6.114357e-06$
+    \item Erreur L2 relative: $0.106320$
+\end{itemize}
+
+\subsubsection*{Commentaires sur les résultats PINN}
+\begin{itemize}
+    \item La solution PINN n'arrive pas à reproduire la solution de référence sur les bordures du domaine.
+    \item On peut se demander si l'architecture du réseau est suffisante pour capturer la complexité de la solution. Ou si on augmente le coefficient dans la fonction de perte on peut espérer que le modèle approxime bien la solution sur les bordures.
+\end{itemize}
+
+\subsection{Solution par Apprentissage Supervisé}
+
+Les figures \ref{fig:sup_solution_2d}, \ref{fig:sup_solution_3d} et \ref{fig:sup_resid_3d} montrent respectivement la solution obtenue par le réseau supervisé en vue 2D, en représentation 3D, et le résidu de l'EDP.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/supervised_solution_2d.pdf}
+        \caption{Vue 2D.}
+        \label{fig:sup_solution_2d}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/supervised_solution_3d.pdf}
+        \caption{Représentation 3D.}
+        \label{fig:sup_solution_3d}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/sup_residuals_3d.pdf}
+        \caption{Résidu EDP}
+        \label{fig:sup_resid_3d} 
+    \end{subfigure}
+    \caption{Solutions obtenues par apprentissage supervisé : (a) vue 2D, (b) représentation 3D et (c) résidu de l'EDP.}
+    \label{fig:sup_solutions}
+\end{figure}
+
+La figure \ref{fig:sup_training} montre l'évolution des pertes d'entraînement et de validation pendant l'apprentissage supervisé.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/supervised_training_history.pdf}
+    \caption{Évolution des pertes pendant l'entraînement du modèle supervisé.}
+    \label{fig:sup_training}
+\end{figure}
+
+\subsection{Comparaison Apprentissage Supervisé vs Différences Finies}
+
+Les figures \ref{fig:sup_error_2d} et \ref{fig:sup_error_3d} montrent l'erreur entre la solution par apprentissage supervisé et la solution par différences finies.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/supervised_fd_error_2d.pdf}
+        \caption{Erreur 2D.}
+        \label{fig:sup_error_2d}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figures/supervised_fd_error_3d.pdf}
+        \caption{Erreur 3D.}
+        \label{fig:sup_error_3d}
+    \end{subfigure}
+    \caption{Erreur entre apprentissage supervisé et différences finies : (a) vue 2D et (b) représentation 3D.}
+    \label{fig:sup_errors}
+\end{figure}
+
+\textbf{Métriques d'erreur pour l'apprentissage supervisé:}
+\begin{itemize}
+    \item Sur la grille complète:
+    \begin{itemize}
+        \item Erreur quadratique moyenne (MSE): $2.867895e-08$
+        \item Erreur L2 relative: $0.007281$
+    \end{itemize}
+    \item Sur l'ensemble de test:
+    \begin{itemize}
+        \item Erreur quadratique moyenne (MSE): $2.916618e-08$
+        \item Erreur L2 relative: $0.006990$
+    \end{itemize}
+\end{itemize}
+
+\subsubsection*{Commentaires sur les résultats de l'apprentissage supervisé}
+\begin{itemize}
+    \item La méthode de régression supervisée utilisant un réseau de neurones présente une erreur faible par rapport à la méthode précédente.
+    \item On remarque aussi une bonne généralisation sur l'ensemble de test.
+    \item Il est important de noter que les performances peuvent varier en fonction des hyperparamètres choisis.
+    \item Le choix de la taille de batch (128) peut influencer la stabilité et la vitesse de convergence lors de l'entraînement.
+    \item On peut également envisager d'optimiser l'architecture du réseau pour améliorer les résultats.
+\end{itemize}
+
+\section{Comparaison des Méthodes}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Méthode} & \textbf{MSE} & \textbf{Erreur L2 Relative}\\
+        \midrule
+        PINN vs. Différences Finies & $6.11 \times 10^{-6}$ & $0.1063$ \\
+        Supervisé vs. Différences Finies & $2.87 \times 10^{-8}$ & $0.0073$ \\
+        Supervisé (ensemble de test) & $2.92 \times 10^{-8}$ & $0.0070$ \\
+        \bottomrule
+    \end{tabular}
+    \caption{Comparaison des métriques d'erreur entre les différentes approches.}
+    \label{tab:comparison}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Méthode} & \textbf{Génération de données (s)} & \textbf{Entraînement (s)} & \textbf{Inférence (ms)} \\
+        \midrule
+        PINN & $0.0004$ & $94.11$ & $0.33$ \\
+        Supervisé & $0.0004$ & $198.57$ & $0.40$ \\
+        Différences Finies & - & - & $4.77$ \\
+        \bottomrule
+    \end{tabular}
+    \caption{Comparaison des temps d'exécution (en secondes pour l'entraînement et millisecondes pour l'inférence).}
+    \label{tab:comparison_temps}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Paramètre} & \textbf{PINN} & \textbf{Supervisé} \\
+        \midrule
+        Architecture & 2-64-64-64-1 & 2-64-64-64-1 \\
+        Taux d'apprentissage & $0.001$ & $0.001$ \\
+        Nombre d'époques & $10000$ & $10000$ \\
+        Taille de batch & - & $128$ \\
+        Grille de discrétisation & $100 \times 100$ & $100 \times 100$ \\
+        \bottomrule
+    \end{tabular}
+    \caption{Paramètres d'entraînement des modèles.}
+    \label{tab:parameters}
+\end{table}
+
+\subsection{Discussion}
+
+Les tableaux \ref{tab:comparison} et \ref{tab:comparison_temps} révèlent des différences significatives entre les approches étudiées.
+\vspace{1em}
+
+La méthode d'apprentissage supervisé montre clairement une meilleure précision avec une erreur MSE de $2.87 \times 10^{-8}$ et une erreur L2 relative de $0.0073$ par rapport à la solution par différences finies. Cette performance supérieure est attendue puisque le modèle supervisé est directement entraîné sur les données générées par la méthode des différences finies. La cohérence entre les erreurs sur l'ensemble complet ($2.87 \times 10^{-8}$) et sur l'ensemble de test ($2.92 \times 10^{-8}$) démontre également une bonne capacité de généralisation. Toutefois, cet avantage en précision s'accompagne d'un coût computationnel plus élevé, avec un temps d'entraînement de 198.57 secondes, soit plus du double que celui du PINN.
+\vspace{1em}
+
+Le PINN, en revanche, présente une erreur MSE de $6.11 \times 10^{-6}$ et une erreur L2 relative de $0.1063$, environ 15 fois supérieures à celles de l'approche supervisée. De plus, il présente une erreur flagrante sur les bords du domaine. Une solution possible est d'augmenter le coefficient du terme de perte des bords, ce qui améliore les résultats (voir figure \ref{fig:coef_exp}). Cependant, il est étonnant de constater que le résidu augmente dans la figure \ref{fig:coef_exp_res}. En regardant l'échelle, on passe de résidus d'ordre 0.0075 à 0.02. Cette différence s'explique par la nature de son apprentissage, qui repose uniquement sur la minimisation du résidu de l'équation différentielle et des conditions aux limites, sans accès direct à la solution de référence. Malgré cette précision moindre, le PINN offre un avantage considérable : il n'a pas besoin de solution préalable pour son entraînement et s'exécute plus rapidement (94.11 secondes).
+\vspace{1em}
+
+La solution PINN a un résidu plus faible comparé à la méthode d'apprentissage supervisé sur certaines régions du domaine, ce qui indique une meilleure satisfaction locale de l'équation différentielle. Cependant, cette performance est obtenue au détriment de la précision globale, notamment sur les bordures du domaine. Cela souligne l'importance de choisir des coefficients appropriés dans la fonction de perte pour équilibrer les différents termes.
+\vspace{1em}
+
+En conclusion, bien que le PINN soit moins précis que l'approche supervisée, il reste une méthode prometteuse pour résoudre des problèmes où les données de solution ne sont pas disponibles. Des améliorations futures pourraient inclure l'utilisation de techniques d'optimisation avancées, des architectures de réseau plus adaptées ou des stratégies hybrides combinant les avantages des PINNs et de l'apprentissage supervisé.
+\vspace{1em}
+
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.3\textwidth}
+        \includegraphics[width=\textwidth]{figures/coeff_1.0_pinn_solution_3d.pdf}
+        \caption{$\mathcal{L} = \mathcal{L}_\text{équation} + \mathcal{L}_\text{limite}$}
+    \end{subfigure}
+    \begin{subfigure}{0.3\textwidth}
+        \includegraphics[width=\textwidth]{figures/coeff_4_pinn_solution_3d.pdf}
+        \caption{$\mathcal{L} = \mathcal{L}_\text{équation} + 4\mathcal{L}_\text{limite}$}
+    \end{subfigure}
+    \begin{subfigure}{0.3\textwidth}
+        \includegraphics[width=\textwidth]{figures/coeff_16_pinn_solution_3d.pdf}
+        \caption{$\mathcal{L} = \mathcal{L}_\text{équation} + 16\mathcal{L}_\text{limite}$}
+    \end{subfigure}
+    \caption{Comparaison des solutions obtenues par PINN (10000 itérations) avec différents coefficients pour le terme de perte des conditions aux limites.}
+    \label{fig:coef_exp}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.3\textwidth}
+        \includegraphics[width=\textwidth]{figures/coeff_1.0_pinn_residuals_3d.pdf}
+        \caption{$\mathcal{L} = \mathcal{L}_\text{équation} + \mathcal{L}_\text{limite}$}
+    \end{subfigure}
+    \begin{subfigure}{0.3\textwidth}
+        \includegraphics[width=\textwidth]{figures/coeff_4_pinn_residuals_3d.pdf}
+        \caption{$\mathcal{L} = \mathcal{L}_\text{équation} + 4\mathcal{L}_\text{limite}$}
+    \end{subfigure}
+    \begin{subfigure}{0.3\textwidth}
+        \includegraphics[width=\textwidth]{figures/coeff_16_pinn_residuals_3d.pdf}
+        \caption{$\mathcal{L} = \mathcal{L}_\text{équation} + 16\mathcal{L}_\text{limite}$}
+    \end{subfigure}
+    \caption{Comparaison des résidus obtenues par PINN (10000 itérations) avec différents coefficients pour le terme de perte des conditions aux limites.}
+    \label{fig:coef_exp_res}
+\end{figure}
+
+La méthode des différences finies reste, quant à elle, significativement plus rapide à l'exécution ($0.00477$ secondes), mais moins flexible face à des géométries complexes ou des conditions aux limites non standards. 
+
+En termes d'architecture et d'hyperparamètres (voir tableau \ref{tab:parameters}), les deux approches neuronales utilisent une configuration identique (réseau 2-64-64-64-1, taux d'apprentissage de 0.001, 10000 époques), ce qui renforce la validité de leur comparaison directe. La principale différence réside dans l'utilisation d'un mini-batch de taille 128 pour le modèle supervisé, contre un traitement global pour le PINN.
+\vspace{1em}
+
+En résumé :
+\begin{itemize}
+    \item \textbf{Supervisé} : Offre la meilleure précision (erreur 15 fois moindre que le PINN) mais nécessite des données de solution préexistantes et un temps d'entraînement plus long (198.57s).
+    \item \textbf{PINN} : Présente l'avantage majeur de fonctionner sans données de solution, avec un temps d'entraînement réduit (94.11s), mais au prix d'une précision plus faible.
+    \item \textbf{Différences Finies} : Reste la méthode la plus rapide à l'exécution, servant de référence pour l'évaluation des approches neuronales.
+\end{itemize}
+
+
+\section{Conclusion et Perspectives}
+
+\subsection{Conclusion}
+
+Cette étude comparative entre les Réseaux Neuronaux Informés par la Physique (PINNs) et l'apprentissage supervisé pour la résolution de l'équation de Poisson a révélé des caractéristiques distinctes pour chaque approche.
+\vspace{1em}
+
+L'apprentissage supervisé a démontré une précision supérieure (erreur L2 relative de $0.0073$ contre $0.1063$ pour le PINN) mais nécessite une solution de référence préexistante et un temps d'entraînement plus long ($198.57$ secondes). En revanche, le PINN offre l'avantage considérable de fonctionner sans données de solution préalable et avec un temps d'entraînement réduit ($94.11$ secondes), au prix d'une précision plus faible.
+\vspace{1em}
+
+Les résultats suggèrent que le choix entre ces méthodes dépend principalement du contexte d'application :
+\begin{itemize}
+    \item Les PINNs sont préférables lorsque les solutions analytiques ou numériques sont difficiles à obtenir, ou pour des géométries complexes.
+    \item L'apprentissage supervisé est plus adapté aux problèmes où la précision est primordiale et où des solutions de référence sont disponibles.
+\end{itemize}
+
+La méthode des différences finies reste, quant à elle, significativement plus rapide à l'exécution ($0.00477$ secondes), mais moins flexible face à des géométries complexes ou des conditions aux limites non standards.
+
+\subsection{Perspectives}
+
+Plusieurs pistes d'amélioration et d'extension peuvent être envisagées :
+
+\begin{enumerate}
+    \item \textbf{Architectures hybrides} : Combiner les avantages des deux approches, par exemple en pré-entraînant un PINN avec des données supervisées puis en l'affinant avec la contrainte physique.
+
+    \item \textbf{Intégration de connaissances a priori} : Explorer comment incorporer des informations spécifiques au domaine, comme des symétries ou des invariances, pour améliorer la précision et la vitesse de convergence.
+
+    \item \textbf{Quantification d'incertitude} : Développer des méthodes pour estimer l'incertitude des prédictions, ce qui est essentiel pour les applications critiques.
+
+    \item \textbf{Apprentissage par transfert} : Étudier la possibilité d'utiliser des modèles entraînés sur certaines configurations pour accélérer l'apprentissage sur de nouvelles configurations similaires.
+\end{enumerate}
+
+Ces perspectives illustrent le potentiel considérable des approches basées sur l'apprentissage automatique pour la résolution d'équations aux dérivées partielles, un domaine en pleine expansion à l'intersection de l'intelligence artificielle et de la modélisation physique.
+
+\bibliographystyle{plain}
+
+\end{document}

@@ -1,0 +1,48 @@
+{
+    "parameters": {
+        "n_points_per_dim": 100,
+        "n_plot": 50,
+        "a": 0.3,
+        "b": 0.5,
+        "pinn_lr": 0.001,
+        "pinn_epochs": 10000,
+        "sup_lr": 0.001,
+        "sup_epochs": 10000,
+        "sup_batch_size": 128
+    },
+    "pinn_history_file": "pinn_training_history.pdf",
+    "pinn_2d_file": "pinn_solution_2d.pdf",
+    "pinn_3d_file": "pinn_solution_3d.pdf",
+    "pinn_residuals_3d_file": "pinn_residuals_3d.pdf",
+    "fd_2d_file": "fd_solution_2d.pdf",
+    "fd_3d_file": "fd_solution_3d.pdf",
+    "mse_pinn_fd": 6.11435688649667e-06,
+    "rel_l2_error_pinn_fd": 0.10631972234139024,
+    "pinn_error_2d_file": "pinn_fd_error_2d.pdf",
+    "pinn_error_3d_file": "pinn_fd_error_3d.pdf",
+    "sup_history_file": "supervised_training_history.pdf",
+    "sup_2d_file": "supervised_solution_2d.pdf",
+    "sup_3d_file": "supervised_solution_3d.pdf",
+    "sup_residuals_3d_file": "sup_residuals_3d.pdf",
+    "mse_sup_fd": 2.867894683404005e-08,
+    "rel_l2_error_sup_fd": 0.00728148637223381,
+    "sup_error_2d_file": "supervised_fd_error_2d.pdf",
+    "sup_error_3d_file": "supervised_fd_error_3d.pdf",
+    "mse_sup_test": 2.9166182358153492e-08,
+    "rel_l2_error_sup_test": 0.006990435533225536,
+    "timings": {
+        "PINN": {
+            "Training": 94.10948777198792,
+            "Inference": 0.000331878662109375
+        },
+        "Supervised Regression": {
+            "Training": 198.57168674468994,
+            "Inference": 0.0003974437713623047
+        },
+        "FD": {
+            "Training": 0.004772663116455078,
+            "Inference": 0.0
+        },
+        "Data Generation": 0.00041675567626953125
+    }
+}
