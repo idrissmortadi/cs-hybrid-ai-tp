@@ -1,6 +1,5 @@
 # Hybrid AI Poisson Solver
 
-
 ![Illustration](image.png)
 
 This project demonstrates hybrid methods for solving the two-dimensional Poisson equation on a unit square:
@@ -36,7 +35,7 @@ pip install torch numpy matplotlib scikit-learn
 
 ## Project Structure
 
-```
+```txt
 ├── config.py           # Global parameters and device settings
 ├── data_utils.py       # Grid generation and train/test split helpers
 ├── fd_solver.py        # Finite-difference Poisson solver
@@ -63,7 +62,6 @@ pip install torch numpy matplotlib scikit-learn
    - Train PINN and supervised models
    - Solve Poisson with finite differences
    - Generate all figures in `rapport/figures/`
-   - Compile and save `rapport.tex` and `rapport.pdf`
 
 3. To explore boundary-loss coefficient experiments:
 

@@ -94,3 +94,6 @@ pip-delete-this-directory.txt
 *.blx.blg
 *.blx.aux
 *.blx.run.xml
+
+# Exclude rapport.pdf
+!rapport.pdf
