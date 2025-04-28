@@ -1,5 +1,8 @@
 # Hybrid AI Poisson Solver
 
+
+![Illustration](image.png)
+
 This project demonstrates hybrid methods for solving the two-dimensional Poisson equation on a unit square:
 
 - **Physics-Informed Neural Networks (PINNs)**
